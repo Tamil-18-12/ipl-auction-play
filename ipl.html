@@ -12,74 +12,51 @@
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css">
 
-    <script src="/socket.io/socket.io.js"></script>
-
     <link rel="stylesheet" href="style.css">
-
 </head>
 
-<body class="mobile-layout">
+<body class="mobile-layout" style="background-color: #0b0c15;">
+
     <div class="shake-container">
         <div id="introOverlay">
+            <div class="intro-content">
+                <div class="auction-text">IPL AUCTION</div>
 
-            <div class="auction-text">IPL AUCTION</div>
+                <div class="gavel-wrapper">
+                    <svg class="gavel" viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="woodGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#3E2723;stop-opacity:1" />
+                                <stop offset="30%" style="stop-color:#5D4037;stop-opacity:1" />
+                                <stop offset="50%" style="stop-color:#8D6E63;stop-opacity:1" />
+                                <stop offset="70%" style="stop-color:#5D4037;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#3E2723;stop-opacity:1" />
+                            </linearGradient>
+                            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#B8860B;stop-opacity:1" />
+                                <stop offset="50%" style="stop-color:#FFD700;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#B8860B;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
 
-            <div class="sound-block"></div>
+                        <rect x="90" y="80" width="20" height="180" rx="5" fill="url(#woodGradient)" />
+                        <circle cx="100" cy="270" r="15" fill="url(#woodGradient)" stroke="#281815" stroke-width="2" />
+                        <rect x="20" y="20" width="160" height="70" rx="10" fill="url(#woodGradient)" stroke="#281815"
+                            stroke-width="2" />
+                        <rect x="30" y="20" width="15" height="70" fill="url(#goldGradient)" stroke="#8B4513"
+                            stroke-width="1" />
+                        <rect x="155" y="20" width="15" height="70" fill="url(#goldGradient)" stroke="#8B4513"
+                            stroke-width="1" />
+                        <rect x="90" y="20" width="20" height="70" fill="url(#goldGradient)" opacity="0.8" />
+                    </svg>
+                </div>
 
-            <div class="gavel-container">
-                <svg class="gavel" viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <linearGradient id="woodGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:#3E2723;stop-opacity:1" />
-
-                            <stop offset="30%" style="stop-color:#5D4037;stop-opacity:1" />
-                            <stop offset="50%" style="stop-color:#8D6E63;stop-opacity:1" />
-
-                            <stop offset="70%" style="stop-color:#5D4037;stop-opacity:1" />
-                            <stop offset="100%" style="stop-color:#3E2723;stop-opacity:1" />
-
-                        </linearGradient>
-                        <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-
-                            <stop offset="0%" style="stop-color:#B8860B;stop-opacity:1" />
-
-                            <stop offset="50%" style="stop-color:#FFD700;stop-opacity:1" />
-
-                            <stop offset="100%" style="stop-color:#B8860B;stop-opacity:1" />
-
-                        </linearGradient>
-                    </defs>
-
-
-                    <rect x="90" y="80" width="20" height="180" rx="5" fill="url(#woodGradient)" />
-
-                    <circle cx="100" cy="270" r="15" fill="url(#woodGradient)" stroke="#281815" stroke-width="2" />
-
-
-                    <rect x="20" y="20" width="160" height="70" rx="10" fill="url(#woodGradient)" stroke="#281815"
-                        stroke-width="2" />
-
-                    <rect x="30" y="20" width="15" height="70" fill="url(#goldGradient)" stroke="#8B4513"
-                        stroke-width="1" />
-
-                    <rect x="155" y="20" width="15" height="70" fill="url(#goldGradient)" stroke="#8B4513"
-                        stroke-width="1" />
-
-
-                    <rect x="90" y="20" width="20" height="70" fill="url(#goldGradient)" opacity="0.8" />
-
-                    <rect x="85" y="80" width="30" height="10" fill="url(#goldGradient)" />
-
-                </svg>
+                <div class="sound-block"></div>
+                <div class="shockwave"></div>
+                <div class="intro-start-text">START</div>
             </div>
-
-            <div class="shockwave"></div>
-
-            <div class="sold-text">START</div>
         </div>
     </div>
-
-
 
     <div id="lobbyScreen">
         <div class="lobby-card">
@@ -121,6 +98,140 @@
                 </div>
             </div>
             <div id="lobbyError" class="text-danger mt-3 fw-bold"></div>
+
+            <div class="d-flex justify-content-center gap-3 mt-4 pt-3 border-top border-secondary">
+                <button class="btn btn-sm btn-outline-info rounded-0 px-4" data-bs-toggle="modal"
+                    data-bs-target="#aboutModal">
+                    <i class="bi bi-info-circle me-1"></i> ABOUT
+                </button>
+                <button class="btn btn-sm btn-outline-warning rounded-0 px-4" data-bs-toggle="modal"
+                    data-bs-target="#rulesModal">
+                    <i class="bi bi-book me-1"></i> RULES
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="aboutModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content bg-dark border-secondary text-white"
+                style="background-color: #151621 !important; border: 1px solid rgba(255,215,0,0.3);">
+                <div class="modal-header border-bottom border-secondary">
+                    <h5 class="modal-title display-font text-info"><i class="bi bi-info-circle-fill me-2"></i> GAME
+                        WORKFLOW</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="text-center mb-5">
+                        <h2 class="display-font text-white" style="font-size: 3rem; letter-spacing: 2px;">IPL MEGA
+                            AUCTION '25</h2>
+                        <p class="text-white-50">The Complete Multiplayer Experience</p>
+                    </div>
+
+                    <div class="workflow-grid">
+                        <div class="workflow-card">
+                            <div class="card-bg-number">01</div>
+                            <div class="card-icon-box" style="background: rgba(0, 122, 255, 0.2); color: #007aff;">
+                                <i class="bi bi-door-open-fill"></i>
+                            </div>
+                            <h4 class="card-title">Lobby & Teams</h4>
+                            <p class="card-desc">Create a private room. Joiners pick their franchises. Host configures
+                                budget & slots.</p>
+                        </div>
+
+                        <div class="workflow-card">
+                            <div class="card-bg-number">02</div>
+                            <div class="card-icon-box" style="background: rgba(255, 215, 0, 0.2); color: #ffd700;">
+                                <i class="bi bi-hammer"></i>
+                            </div>
+                            <h4 class="card-title text-gold">Live Bidding</h4>
+                            <p class="card-desc">Real-time auction. Bid against friends. Manage your purse dynamically.
+                                Don't overspend!</p>
+                        </div>
+
+                        <div class="workflow-card">
+                            <div class="card-bg-number">03</div>
+                            <div class="card-icon-box" style="background: rgba(0, 230, 118, 0.2); color: #00e676;">
+                                <i class="bi bi-person-check-fill"></i>
+                            </div>
+                            <h4 class="card-title">Squad Selection</h4>
+                            <p class="card-desc">Select your best Playing XI, 1 Impact Player, and appoint a Captain
+                                from your buy.</p>
+                        </div>
+
+                        <div class="workflow-card">
+                            <div class="card-bg-number">04</div>
+                            <div class="card-icon-box" style="background: rgba(224, 64, 251, 0.2); color: #e040fb;">
+                                <i class="bi bi-cpu-fill"></i>
+                            </div>
+                            <h4 class="card-title">AI Simulation</h4>
+                            <p class="card-desc">Advanced AI engine simulates the entire season, calculating runs,
+                                wickets, and wins.</p>
+                        </div>
+
+                        <div class="workflow-card">
+                            <div class="card-bg-number">05</div>
+                            <div class="card-icon-box" style="background: rgba(255, 87, 34, 0.2); color: #ff5722;">
+                                <i class="bi bi-graph-up-arrow"></i>
+                            </div>
+                            <h4 class="card-title">Stats & Awards</h4>
+                            <p class="card-desc">View Points Table. Winners of Orange Cap, Purple Cap, and MVP are
+                                declared instantly.</p>
+                        </div>
+
+                        <div class="workflow-card highlight-card">
+                            <div class="card-bg-number">06</div>
+                            <div class="card-icon-box" style="background: #ffd700; color: #000;">
+                                <i class="bi bi-trophy-fill"></i>
+                            </div>
+                            <h4 class="card-title text-black">The Champion</h4>
+                            <p class="card-desc text-black-50">Playoffs logic runs. The Final is played. One team lifts
+                                the IPL Trophy!</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-top border-secondary text-center">
+                        <small class="text-white-50">Tech Stack: HTML5 • CSS3 • Bootstrap 5 • Socket.IO •
+                            Node.js</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="rulesModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark border-secondary text-white"
+                style="background-color: #151621 !important;">
+                <div class="modal-header border-bottom border-secondary">
+                    <h5 class="modal-title display-font text-warning">AUCTION RULES</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="list-group list-group-flush bg-transparent">
+                        <li class="list-group-item bg-transparent text-white border-secondary">
+                            <i class="bi bi-cash-stack text-success me-2"></i>
+                            <strong>Purse Limit:</strong> Each team has a fixed budget (e.g., ₹100 Cr). Don't go broke!
+                        </li>
+                        <li class="list-group-item bg-transparent text-white border-secondary">
+                            <i class="bi bi-people-fill text-info me-2"></i>
+                            <strong>Squad Size:</strong> Minimum 18 players, Maximum 25 players.
+                        </li>
+                        <li class="list-group-item bg-transparent text-white border-secondary">
+                            <i class="bi bi-globe text-primary me-2"></i>
+                            <strong>Foreign Players:</strong> Maximum 8 overseas players per squad.
+                        </li>
+                        <li class="list-group-item bg-transparent text-white border-secondary">
+                            <i class="bi bi-hammer text-warning me-2"></i>
+                            <strong>Bidding:</strong> Once the timer stops, the player is sold to the highest bidder.
+                        </li>
+                        <li class="list-group-item bg-transparent text-white border-secondary">
+                            <i class="bi bi-clock-history text-danger me-2"></i>
+                            <strong>Time:</strong> Bids reset the timer. Act fast!
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 
