@@ -1,6 +1,7 @@
 // ======================================================
-// 🔧 CHANGE 1: ROBUST SOCKET INITIALIZATION
+// 🔧 1. ROBUST SOCKET INITIALIZATION
 // ======================================================
+
 const socket = io({
   transports: ["websocket"],
   reconnection: true,
@@ -27,16 +28,23 @@ let connectedUsersCount = 1;
 let lastTournamentData = null;
 
 // ======================================================
-// 🔧 CHANGE 2: SOCKET HEALTH + HEARTBEAT
+// 🔧 2. SOCKET HEALTH + HEARTBEAT (UPDATED FOR RENDER)
 // ======================================================
 let socketAlive = true;
 
 // --- HEARTBEAT (PREVENT RENDER SLEEP) ---
+// This runs every 5 minutes (300,000 ms) to keep the app awake
 setInterval(() => {
+  // 1. Ping the Socket (Keeps the WebSocket connection alive)
   if (socket.connected) {
     socket.emit("pingServer");
   }
-}, 10000);
+
+  // 2. Ping the HTTP Server (Keeps the Render Server awake)
+  fetch(window.location.href)
+    .then(() => console.log("✅ Keep-Alive: HTTP Ping Sent"))
+    .catch(() => console.log("⚠️ Keep-Alive: HTTP Ping Failed"));
+}, 120000); 
 
 // --- SOCKET STATUS HANDLERS ---
 socket.on("connect", () => {
@@ -62,25 +70,21 @@ socket.on("reconnect", () => {
   }
 });
 
-// 🔧 CHANGE 5: HANDLE SERVER PONG
 socket.on("pongServer", () => {
-  // silent keep-alive
-  // You can uncomment below to debug heartbeat
-  // console.log("Pong received");
+  // silent keep-alive response
 });
 
 // ======================================================
-// 🔧 CHANGE 6: SAFE PAGE REFRESH HANDLING
+// 🔧 3. SAFE PAGE REFRESH HANDLING
 // ======================================================
-window.addEventListener("beforeunload", () => {
-  if (socket.connected) {
-    socket.disconnect();
-  }
+window.addEventListener("beforeunload", (e) => {
+  e.preventDefault();
+  e.returnValue = "";
+  return "";
 });
 
-// --- 1. PLAYER DATABASE ---
+// --- PLAYER DATABASE & CONSTANTS ---
 const PLAYER_DATABASE = {
-  // --- BATTERS (INDIAN & FOREIGN) ---
   "Virat Kohli": { bat: 98, bowl: 10, luck: 90, type: "bat" },
   "Rohit Sharma": { bat: 95, bowl: 15, luck: 85, type: "bat" },
   "Shubman Gill": { bat: 92, bowl: 5, luck: 88, type: "bat" },
@@ -264,6 +268,7 @@ const PLAYER_DATABASE = {
   "R Sai Kishore": { bat: 25, bowl: 84, luck: 82, type: "bowl" },
   "Suyash Sharma": { bat: 5, bowl: 84, luck: 80, type: "bowl" },
   "Manimaran Siddharth": { bat: 10, bowl: 80, luck: 75, type: "bowl" },
+  // Add more specific stats here if needed
 };
 
 const MARQUEE_PLAYERS = {
@@ -492,6 +497,7 @@ const RAW_DATA = {
 const PLAYER_IMAGE_MAP = {
   "David Warner":
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRy2UoIz9RctCjtDw0iTDr9W8lq_jMqGo0JpQ&s",
+
   "Virat Kohli":
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSXd7IOQ0NKyGMznUdvuNfPqT1PjyLLWs2PlA&s",
   "rohit sharma":
@@ -737,15 +743,21 @@ const PLAYER_IMAGE_MAP = {
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgVBnKUGvBQjHnNvaw_A9lKO7c6MwP2EqHlQ&s",
   "Josh Inglis":
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ96_gVuW8JTbxirRPH9mVAjB59jbtQRt6UtQ&s",
+  // Add other images
 };
 
 const ROLE_ORDER = {
   wk: 1,
   batter: 2,
+  bat: 2,
   allrounder: 3,
+  ar: 3,
   spinner: 4,
+  spin: 4,
   fast: 5,
+  pace: 5,
   bowler: 5,
+  bowl: 5,
 };
 
 function getRolePriority(role) {
@@ -755,10 +767,11 @@ function getRolePriority(role) {
 function getRoleIcon(role) {
   role = role.toLowerCase();
   if (role === "wk") return "🧤";
-  if (role === "batter") return "🏏";
-  if (role === "allrounder") return "🏏⚾";
-  if (role === "spinner") return "🌪️";
-  if (role.includes("fast") || role.includes("pace")) return "⚡";
+  if (role === "batter" || role === "bat") return "🏏";
+  if (role === "allrounder" || role === "ar") return "🏏⚾";
+  if (role === "spinner" || role === "spin") return "🌪️";
+  if (role.includes("fast") || role.includes("pace") || role === "bowl")
+    return "⚡";
   if (role === "bowler") return "⚾";
   return "";
 }
@@ -823,6 +836,7 @@ function getPlayerStats(name, roleHint = "bat") {
   return { bat, bowl, luck, role: roleHint };
 }
 
+// --- DOM EVENT LISTENERS ---
 document.getElementById("doCreateBtn").addEventListener("click", () => {
   if (!socketAlive)
     return (lobbyError.innerText = "Connection lost. Reconnecting...");
@@ -849,7 +863,6 @@ document.getElementById("doJoinBtn").addEventListener("click", () => {
   socket.emit("join_room", { roomId, password: pass });
 });
 
-// 🔧 CHANGE 3: PREVENT DUPLICATE LISTENERS
 socket.off("roomcreated");
 socket.on("roomcreated", (roomId) => {
   isAdmin = true;
@@ -968,7 +981,6 @@ socket.on("sync_data", (data) => {
     } else {
       timerEl.classList.remove("timer-paused");
     }
-
     updateBidControlsState(p);
   }
 });
@@ -998,6 +1010,7 @@ function initLobbyState() {
     "RR",
     "KKR",
     "PBKS",
+    
   ];
   for (let i = 0; i < count; i++) {
     const defName =
@@ -1026,9 +1039,9 @@ function renderLobbyTeams() {
 
   globalTeams.forEach((t) => {
     let isMyTeam = t.bidKey === mySelectedTeamKey;
-    let statusClass;
-    let statusText;
-    let clickAction = "";
+    let statusClass,
+      statusText,
+      clickAction = "";
 
     if (t.isTaken) {
       if (isMyTeam) {
@@ -1215,7 +1228,6 @@ function buildAuctionQueue() {
     )
   );
 
-  // --- UPDATED DOMESTIC LOGIC: Base Price 25L ---
   const domBat = RAW_DATA["Domestic"].batsmen.map((n) =>
     createPlayer(
       { name: n, type: "Uncapped" },
@@ -1253,17 +1265,14 @@ socket.on("auction_started", (data) => {
   logEvent(`<strong>AUCTION STARTED</strong>`, true);
 });
 
-// --- UPDATED BID CONTROLS ---
 function setupBidControls() {
   const inputContainer = document.querySelector(".input-group");
   if (inputContainer) {
     inputContainer.className = "d-flex align-items-center gap-2";
     inputContainer.style.maxWidth = "250px";
-
     const oldSpan = inputContainer.querySelector("span");
     if (oldSpan) oldSpan.remove();
 
-    // Only Show Input and Increase Button (No Decrease)
     inputContainer.innerHTML = `
             <div class="flex-grow-1">
                 <div class="small text-center text-white-50" style="font-size: 0.6rem; letter-spacing:1px;">INCREMENT</div>
@@ -1271,7 +1280,6 @@ function setupBidControls() {
             </div>
             <button id="incBidBtn" class="btn btn-outline-success fw-bold" style="height: 45px; width: 45px; border-radius: 8px;">+</button>
         `;
-
     document
       .getElementById("incBidBtn")
       .addEventListener("click", () => adjustIncrement(true));
@@ -1281,15 +1289,8 @@ function setupBidControls() {
 function adjustIncrement(isIncrease) {
   const input = document.getElementById("customBidInput");
   let val = parseInt(input.value);
-
-  // Logic: 25L step for normal, 5L/10L logic can be adjusted here.
-  // Assuming standard 25L step for Normal Players
   const step = 2500000;
-
-  if (isIncrease) {
-    val += step;
-  }
-
+  if (isIncrease) val += step;
   input.value = val;
   const bidBtn = document.getElementById("placeBidBtn");
   if (bidBtn && !bidBtn.disabled) {
@@ -1387,7 +1388,6 @@ socket.on("bid_update", (data) => {
   timerEl.innerText = "10";
   timerEl.classList.remove("timer-danger");
 
-  // --- AUTO RESET INPUT ---
   if (currentActivePlayer) {
     const input = document.getElementById("customBidInput");
     if (input) input.value = currentActivePlayer.incrementStep;
@@ -1413,7 +1413,6 @@ socket.on("bid_update", (data) => {
   logEvent(`${data.team.name} bids ${formatAmount(data.amount)}`);
 });
 
-// 🔧 CHANGE 4: SAFETY CHECK BEFORE EMITS
 function submitMyBid() {
   if (!socketAlive) return alert("Connection lost. Please wait…");
   if (
@@ -1521,61 +1520,100 @@ socket.on("sale_finalized", (data) => {
   updateTeamSidebar(globalTeams);
   overlay.classList.add("overlay-active");
 
-  // The server now automatically handles moving to the next player.
-  // We just need to hide the overlay on the client after a delay.
   setTimeout(() => {
     overlay.classList.remove("overlay-active");
   }, 3500);
 });
 
+// ======================================================
+// 🔧 UPDATED TEAM SIDEBAR (FIXED FOR MOBILE + STATS)
+// ======================================================
 function updateTeamSidebar(teams) {
   const container = document.getElementById("teams");
+  const isMobile = window.innerWidth <= 768; // Mobile check
 
-  // If cards don't exist yet or the team count is wrong, create them.
+  // 1. Create cards if they don't exist
   if (container.children.length !== teams.length) {
-    container.innerHTML = ""; // Clear previous content
+    container.innerHTML = "";
     teams.forEach((t) => {
       const isMine = mySelectedTeamKey === t.bidKey;
+
       const card = document.createElement("div");
       card.id = `team-card-${t.bidKey}`;
       card.className = "franchise-card";
       if (isMine) card.classList.add("my-team");
 
+      // --- MOBILE-OPTIMIZED CARD HTML ---
       card.innerHTML = `
-        <div class="f-header">
-            <div class="f-name text-white text-truncate" style="max-width: 120px;">
-                ${t.name} ${
+                <div class="f-header">
+                    <div class="f-name text-white text-truncate" style="max-width: 120px;">
+                        ${t.name} ${
         isMine ? '<i class="bi bi-person-fill text-success"></i>' : ""
       }
-            </div>
-            <div class="text-end">
-                <div class="f-budget">${formatAmount(t.budget)}</div>
-            </div>
-        </div>
-        <div class="f-squad-count">SQUAD: ${t.totalPlayers || 0}/25</div>
-        <div class="level-track">
-            <div class="level-fill" style="width: 0%"></div>
-        </div>`;
+                    </div>
+                    <div class="f-budget">${formatAmount(t.budget)}</div> 
+                </div>
+
+                <div class="mobile-squad-info" style="display: ${
+                  isMobile ? "block" : "none"
+                }; font-size: 0.7rem; color: #aaa; margin-top: 4px;">
+                    SQUAD: <span class="sq-count">0</span>/25
+                    <div class="mobile-progress-bar" style="height: 4px; background: #333; margin-top: 2px; border-radius: 2px;">
+                        <div class="sq-progress" style="width: 0%; height: 100%; background: #00E676;"></div>
+                    </div>
+                </div>
+
+                <div class="f-stats-grid" style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.7rem; color: #888;">
+                    <div class="f-stat-item">
+                        <div class="f-stat-label">Ply</div>
+                        <div class="f-stat-value sq-val">0</div>
+                    </div>
+                    <div class="f-stat-item">
+                        <div class="f-stat-label">Frgn</div>
+                        <div class="f-stat-value frgn-val">0</div>
+                    </div>
+                    <div class="f-stat-item">
+                        <div class="f-stat-label">RTM</div>
+                        <div class="f-stat-value rtm-val">0</div>
+                    </div>
+                </div>
+            `;
       container.appendChild(card);
     });
   }
 
-  // Now, just update the dynamic content of existing cards
+  // 2. Update dynamic data for existing cards
   teams.forEach((t) => {
     const card = document.getElementById(`team-card-${t.bidKey}`);
     if (!card) return;
 
-    const initial = t.budget + (t.totalSpent || 0);
-    const percentUsed = initial > 0 ? (t.totalSpent / initial) * 100 : 0;
     const isHighest = currentHighestBidderKey === t.bidKey;
 
-    card.classList.toggle("active-bidder", isHighest);
+    // Toggle Active Bidder Styling
+    if (isHighest) card.classList.add("active-bidder");
+    else card.classList.remove("active-bidder");
 
+    // Calculate Stats
+    const squadCount = t.roster ? t.roster.length : 0;
+    const foreignCount = t.roster
+      ? t.roster.filter((p) => p.playerType === "Foreign").length
+      : 0;
+    const rtmCount = t.rtmsUsed || 0;
+
+    // Update Text & Bars
     card.querySelector(".f-budget").innerText = formatAmount(t.budget);
-    card.querySelector(".f-squad-count").innerText = `SQUAD: ${
-      t.totalPlayers || 0
-    }/25`;
-    card.querySelector(".level-fill").style.width = `${percentUsed}%`;
+
+    // Update Stats values
+    const sqCountEl = card.querySelector(".sq-count");
+    if (sqCountEl) sqCountEl.innerText = squadCount;
+
+    const sqProgEl = card.querySelector(".sq-progress");
+    if (sqProgEl) sqProgEl.style.width = `${(squadCount / 25) * 100}%`;
+
+    // Update Grid Stats
+    card.querySelector(".sq-val").innerText = squadCount;
+    card.querySelector(".frgn-val").innerText = foreignCount;
+    card.querySelector(".rtm-val").innerText = rtmCount;
   });
 }
 
@@ -1864,14 +1902,14 @@ function renderAllTeams(teamsData) {
       const isCapt =
         team.captain === p.name ? '<span class="captain-badge">C</span>' : "";
       p11Html += `
-                    <div class="team-player-row" style="border-left: 3px solid #00E676; padding-left:8px;">
-                        <span class="text-white">${icon} ${
+                            <div class="team-player-row" style="border-left: 3px solid #00E676; padding-left:8px;">
+                                <span class="text-white">${icon} ${
         p.name
       } ${isCapt}</span>
-                        <span class="text-white-50">${formatAmount(
-                          p.price || 0
-                        )}</span>
-                    </div>`;
+                                <span class="text-white-50">${formatAmount(
+                                  p.price || 0
+                                )}</span>
+                            </div>`;
     });
 
     const fullRoster = team.roster || [];
@@ -1879,14 +1917,14 @@ function renderAllTeams(teamsData) {
       if (!playingNames.includes(p.name)) {
         const icon = getRoleIcon(p.roleKey);
         benchHtml += `
-                        <div class="team-player-row" style="opacity:0.5;">
-                            <span class="text-white">${icon} ${
+                                <div class="team-player-row" style="opacity:0.5;">
+                                    <span class="text-white">${icon} ${
           p.name
         } (Bench)</span>
-                            <span class="text-white-50">${formatAmount(
-                              p.price || 0
-                            )}</span>
-                        </div>`;
+                                    <span class="text-white-50">${formatAmount(
+                                      p.price || 0
+                                    )}</span>
+                                </div>`;
       }
     });
 
@@ -2040,59 +2078,7 @@ function renderSquads() {
   });
 }
 
-// --- NEW FUNCTION: Inject Mobile Styles to Fix Franchise Visibility ---
-function injectMobileStyles() {
-  const style = document.createElement("style");
-  style.innerHTML = `
-      /* Fix for Mobile: Ensure Teams are visible at bottom */
-      @media (max-width: 768px) {
-        #auctionDashboard {
-            display: flex;
-            flex-direction: column;
-            padding-bottom: 140px; /* Space for the bottom fixed team bar */
-        }
-        
-        #teams {
-          display: flex !important;
-          flex-direction: row !important;
-          overflow-x: auto !important; /* Horizontal Scroll enabled */
-          overflow-y: hidden !important; /* Vertical Scroll disabled */
-          white-space: nowrap;
-          width: 100%;
-          height: auto;
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          z-index: 1000;
-          background: #000;
-          border-top: 2px solid #333;
-          padding: 10px;
-          gap: 10px;
-          
-          /* HIDE SCROLLBAR BUT ALLOW SCROLLING */
-          -ms-overflow-style: none;  /* IE and Edge */
-          scrollbar-width: none;  /* Firefox */
-        }
-        
-        /* Hide scrollbar for Chrome, Safari and Opera */
-        #teams::-webkit-scrollbar {
-          display: none;
-        }
-
-        .franchise-card {
-          min-width: 160px; /* Ensure cards don't squash */
-          width: 160px;
-          margin-bottom: 0 !important;
-          flex-shrink: 0;
-        }
-      }
-    `;
-  document.head.appendChild(style);
-}
-
 document.addEventListener("DOMContentLoaded", () => {
-  injectMobileStyles(); // RUN THE CSS FIX ON LOAD
-
   setTimeout(() => {
     const introContainer = document.querySelector(".shake-container");
     if (introContainer) {
