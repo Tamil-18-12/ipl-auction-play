@@ -12,7 +12,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
 const os = require("os");
-const axios = require("axios"); // Missing import for /speech route
+const axios = require("axios");
 
 const app = express();
 const server = http.createServer(app);
@@ -27,7 +27,6 @@ app.get("/", (req, res) => {
 });
 
 // --- SERVE STATIC FILES ---
-// Added to ensure style.css and script.js are served correctly
 app.use(express.static(__dirname));
 app.use(express.raw({ type: "audio/wav", limit: "10mb" }));
 
@@ -83,6 +82,7 @@ app.post("/speech", async (req, res) => {
     }
 
     // 4️⃣ Send to OpenAI
+    // ⚠️ IMPORTANT: Replace 'YOUR_OPENAI_API_KEY' with your actual key
     const aiReply = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
@@ -91,7 +91,7 @@ app.post("/speech", async (req, res) => {
       },
       {
         headers: {
-          Authorization: `Bearer YOUR_OPENAI_API_KEY`, // Replace with your key
+          Authorization: `Bearer YOUR_OPENAI_API_KEY`,
           "Content-Type": "application/json",
         },
       }
@@ -140,7 +140,7 @@ function startTimer(roomId) {
   r.timerPaused = false;
 
   io.to(roomId).emit("timer_tick", r.timer, false);
-  io.to(roomId).emit("timer_status", false); // Explicitly send running status
+  io.to(roomId).emit("timer_status", false);
 
   r.timerInterval = setInterval(() => {
     if (r.timerPaused) return;
@@ -200,15 +200,19 @@ function processSale(roomId, source = "UNKNOWN") {
   }
   r.auctionIndex++;
 
-  // Automatically start the next lot, removing dependency on admin client
   setTimeout(() => {
     if (rooms[roomId]) rooms[roomId].sellingInProgress = false;
     startNextLot(roomId);
-  }, 3800); // Should be slightly longer than client-side overlay
+  }, 3800);
 }
 
 // --- SOCKET HANDLERS ---
 io.on("connection", (socket) => {
+  // 🔧 CHANGE: ADDED PING LISTENER FOR HEARTBEAT
+  socket.on("pingServer", () => {
+    socket.emit("pongServer");
+  });
+
   // 1. Create Room
   socket.on("create_room", ({ roomId, password, config }) => {
     if (rooms[roomId]) return socket.emit("error_message", "Room exists");
@@ -227,7 +231,7 @@ io.on("connection", (socket) => {
       timerInterval: null,
       timerPaused: true,
       state: { isActive: false },
-      adminSocketId: socket.id, // Store admin's socket ID
+      adminSocketId: socket.id,
       sellingInProgress: false,
       squads: {},
     };
@@ -287,23 +291,19 @@ io.on("connection", (socket) => {
     const r = rooms[roomId];
     if (!r) return;
 
-    // Remove user from the room's user list
     r.users = r.users.filter((id) => id !== socket.id);
 
-    // Check if the disconnected user owned a team and release it
     const ownedTeam = r.teams.find((t) => t.ownerSocketId === socket.id);
     if (ownedTeam) {
       ownedTeam.isTaken = false;
       ownedTeam.ownerSocketId = null;
     }
 
-    // Notify remaining users in the lobby
     io.to(roomId).emit("lobby_update", {
       teams: r.teams,
       userCount: r.users.length,
     });
 
-    // If the room is now empty, clean it up
     if (r.users.length === 0) {
       stopTimer(roomId);
       delete rooms[roomId];
@@ -327,7 +327,6 @@ io.on("connection", (socket) => {
     const r = rooms[roomId];
     if (!r) return;
 
-    // --- SECURITY CHECK: Ensure user doesn't already own a team ---
     const existingTeam = r.teams.find(
       (team) => team.ownerSocketId === socket.id
     );
@@ -362,7 +361,7 @@ io.on("connection", (socket) => {
 
   socket.on("admin_rename_team", ({ key, newName }) => {
     const roomId = getRoomId(socket);
-    if (!isAdmin(socket)) return; // Security: Admin only
+    if (!isAdmin(socket)) return;
     const t = rooms[roomId].teams.find((x) => x.bidKey === key);
     if (t) t.name = newName;
     io.to(roomId).emit("lobby_update", {
@@ -375,7 +374,7 @@ io.on("connection", (socket) => {
   socket.on("start_auction", ({ teams, queue }) => {
     const roomId = getRoomId(socket);
     const r = rooms[roomId];
-    if (!r || !isAdmin(socket)) return; // Security: Admin only
+    if (!r || !isAdmin(socket)) return;
 
     r.teams = teams.map((t) => ({
       ...t,
@@ -400,7 +399,6 @@ io.on("connection", (socket) => {
     const r = rooms[roomId];
     const bidderSocket = io.sockets.sockets.get(socket.id);
 
-    // --- SERVER-SIDE VALIDATION ---
     if (
       !r ||
       !r.state.isActive ||
@@ -421,7 +419,7 @@ io.on("connection", (socket) => {
         bidderSocket &&
         bidderSocket.emit("error_message", "You do not own this team.")
       );
-    if (r.currentBidder === teamKey) return; // Already highest bidder
+    if (r.currentBidder === teamKey) return;
     if (team.budget < amount)
       return (
         bidderSocket &&
@@ -431,7 +429,6 @@ io.on("connection", (socket) => {
       return (
         bidderSocket && bidderSocket.emit("error_message", "Bid is too low.")
       );
-    // --- END VALIDATION ---
 
     r.currentBid = amount;
     r.currentBidder = teamKey;
@@ -448,18 +445,14 @@ io.on("connection", (socket) => {
     const roomId = getRoomId(socket);
     const r = rooms[roomId];
     if (r && isAdmin(socket)) {
-      // Security: Admin only
       r.timerPaused = !r.timerPaused;
       io.to(roomId).emit("timer_status", r.timerPaused);
     }
   });
 
   socket.on("request_next_player", () => {
-    // This is now handled automatically by processSale.
-    // This event is kept as a potential admin override but is no longer essential for auction flow.
     const roomId = getRoomId(socket);
     if (isAdmin(socket) && rooms[roomId] && !rooms[roomId].sellingInProgress) {
-      // Security: Admin only
       startNextLot(roomId);
     }
   });
@@ -468,13 +461,13 @@ io.on("connection", (socket) => {
   socket.on("finalize_sale", ({ isUnsold, soldTo, price }) => {
     const roomId = getRoomId(socket);
     const r = rooms[roomId];
-    if (!r || !isAdmin(socket)) return; // Security: Admin only
-    if (isUnsold) r.currentBidder = null; // If admin forces unsold, clear bidder.
+    if (!r || !isAdmin(socket)) return;
+    if (isUnsold) r.currentBidder = null;
     processSale(roomId, "ADMIN_MANUAL");
   });
   socket.on("end_auction_trigger", () => {
     const roomId = getRoomId(socket);
-    if (!isAdmin(socket)) return; // Security: Admin only
+    if (!isAdmin(socket)) return;
     const r = rooms[roomId];
     stopTimer(roomId);
     r.state.isActive = false;
@@ -504,7 +497,7 @@ io.on("connection", (socket) => {
   socket.on("run_simulation", () => {
     const roomId = getRoomId(socket);
     const r = rooms[roomId];
-    if (r && isAdmin(socket)) runSimulationLogic(roomId, r); // Security: Admin only
+    if (r && isAdmin(socket)) runSimulationLogic(roomId, r);
   });
 });
 
@@ -546,7 +539,7 @@ function startNextLot(roomId) {
   r.currentPlayer = r.auctionQueue[r.auctionIndex];
   r.currentBid = r.currentPlayer.basePrice;
   r.currentBidder = null;
-  r.sellingInProgress = false; // Ensure this is reset for the new lot
+  r.sellingInProgress = false;
 
   io.to(roomId).emit("update_lot", {
     player: r.currentPlayer,
@@ -607,7 +600,7 @@ function runAdvancedSimulation(teams) {
     let legalBallsBowled = 0;
     const MAX_BALLS = 120;
 
-    const getMatchForm = () => Math.floor(Math.random() * 10) - 5; // Reduced variance
+    const getMatchForm = () => Math.floor(Math.random() * 10) - 5;
 
     let battingCard = batTeam.playing11.map((p) => ({
       name: p.name,
@@ -621,13 +614,10 @@ function runAdvancedSimulation(teams) {
       role: p.roleKey,
     }));
 
-    // --- STRICT BOWLER SELECTION LOGIC ---
-    // 1. Prioritize Bowlers, All-rounders, Spinners, Fast bowlers
     let validBowlers = bowlTeam.playing11.filter((p) =>
       ["bowler", "allrounder", "spinner", "fast"].includes(p.roleKey)
     );
 
-    // 2. If we don't have 5, fill with Batters (Part-timers)
     if (validBowlers.length < 5) {
       let batters = bowlTeam.playing11.filter((p) => p.roleKey === "batter");
       validBowlers = [
@@ -636,7 +626,6 @@ function runAdvancedSimulation(teams) {
       ];
     }
 
-    // 3. Only if we STILL don't have 5 (disaster squad), use WKs.
     if (validBowlers.length < 5) {
       let wks = bowlTeam.playing11.filter((p) => p.roleKey === "wk");
       validBowlers = [
@@ -651,7 +640,6 @@ function runAdvancedSimulation(teams) {
       runs: 0,
       wkts: 0,
       balls: 0,
-      // Penalize Batters/WKs bowling
       skill:
         (["wk", "batter"].includes(b.roleKey) ? 20 : b.stats?.bowl || 50) +
         getMatchForm(),
@@ -671,59 +659,49 @@ function runAdvancedSimulation(teams) {
       let bowlerObj = bowlingCard[overNum % bowlingCard.length];
       let strikerObj = battingCard[strikerIdx];
 
-      // --- REALISM ENGINE V2 ---
       let batVal = strikerObj.skill;
       let bowlVal = bowlerObj.skill;
 
-      // If bowler is a WK/Batter, give advantage to Batsman but increase variance
       if (["wk", "batter"].includes(bowlerObj.role)) {
         batVal += 15;
       }
 
       let luckDiff = strikerObj.luck - bowlerObj.luck;
-      let ballLuck = Math.random(); // 0.0 to 1.0
+      let ballLuck = Math.random();
 
-      // Calculate contest dominance
       let diff = batVal - bowlVal + luckDiff * 0.15;
-      let outcome = 0; // 0, 1, 2, 3, 4, 6, -1(Out)
-
-      // --- ADJUSTED PROBABILITIES FOR 160-200 SCORES ---
+      let outcome = 0;
 
       if (diff > 40) {
-        // Total Domination (Kohli vs Part-timer)
-        if (ballLuck > 0.98) outcome = -1; // 2% Out (Complacency)
-        else if (ballLuck > 0.88) outcome = 6; // 12% Six
-        else if (ballLuck > 0.7) outcome = 4; // 18% Four
+        if (ballLuck > 0.98) outcome = -1;
+        else if (ballLuck > 0.88) outcome = 6;
+        else if (ballLuck > 0.7) outcome = 4;
         else if (ballLuck > 0.35) outcome = 1;
         else if (ballLuck > 0.25) outcome = 2;
         else outcome = 0;
       } else if (diff > 20) {
-        // Good Batsman
-        if (ballLuck > 0.96) outcome = -1; // 4% Out
-        else if (ballLuck > 0.9) outcome = 6; // 10% Six
-        else if (ballLuck > 0.78) outcome = 4; // 12% Four
+        if (ballLuck > 0.96) outcome = -1;
+        else if (ballLuck > 0.9) outcome = 6;
+        else if (ballLuck > 0.78) outcome = 4;
         else if (ballLuck > 0.4) outcome = 1;
         else if (ballLuck > 0.3) outcome = 2;
         else outcome = 0;
       } else if (diff < -20) {
-        // Bowler Domination (Bumrah vs Tailender)
-        if (ballLuck > 0.85) outcome = -1; // 15% Out
-        else if (ballLuck > 0.95) outcome = 4; // Edged four
-        else if (ballLuck > 0.5) outcome = 0; // 50% Dot
+        if (ballLuck > 0.85) outcome = -1;
+        else if (ballLuck > 0.95) outcome = 4;
+        else if (ballLuck > 0.5) outcome = 0;
         else outcome = 1;
       } else {
-        // Even Contest
-        if (ballLuck > 0.95) outcome = -1; // 5% Out
-        else if (ballLuck > 0.92) outcome = 6; // 8% Six
-        else if (ballLuck > 0.82) outcome = 4; // 10% Four
-        else if (ballLuck > 0.45) outcome = 1; // 37% Single
-        else if (ballLuck > 0.35) outcome = 2; // 10% Double
+        if (ballLuck > 0.95) outcome = -1;
+        else if (ballLuck > 0.92) outcome = 6;
+        else if (ballLuck > 0.82) outcome = 4;
+        else if (ballLuck > 0.45) outcome = 1;
+        else if (ballLuck > 0.35) outcome = 2;
         else outcome = 0;
       }
 
-      // Death Overs (16-20): Higher Risk/Reward
       if (overNum >= 16) {
-        if (outcome === 0 && Math.random() > 0.6) outcome = -1; // Slogging out
+        if (outcome === 0 && Math.random() > 0.6) outcome = -1;
         else if (outcome === 1 && Math.random() > 0.7) outcome = 4;
       }
 
